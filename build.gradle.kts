@@ -21,9 +21,6 @@ repositories {
     maven("https://oss.sonatype.org/content/groups/public/") {
         name = "sonatype"
     }
-    maven("https://jitpack.io") {
-        name = "jitpack"
-    }
 }
 
 dependencies {
@@ -52,7 +49,7 @@ dependencies {
 
     bukkitLibrary("org.jetbrains.kotlin:kotlin-stdlib:2.0.20")
 
-    implementation("dev.jorel:commandapi-bukkit-shade-mojang-mapped:10.1.2")
+    implementation("dev.jorel:commandapi-paper-shade:11.1.0")
 
     implementation(project(":RoosterSql"))
     implementation(project(":RoosterCommon"))

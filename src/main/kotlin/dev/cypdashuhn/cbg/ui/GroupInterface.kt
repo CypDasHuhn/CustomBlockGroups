@@ -22,34 +22,37 @@ import kotlin.reflect.KClass
 object GroupInterface : ScrollInterface<GroupInterface.GroupContext, Material>(
     "GroupInterface",
     options {
+        //<editor-fold desc="Options">
         modifyScroller = {
             val action = this.state.onClick
-            this.run {
-                onClick {
-                    if (!context.isEditing) action?.invoke(this)
-                    else event.isCancelled = true
-                }
-                .displayAs(pagerItem { if (context.isEditing) listOf(t("pager_disabled_editing", player)) else listOf()})
+            onClick {
+                if (!context.isEditing) action?.invoke(this)
+                else event.isCancelled = true
             }
+                .displayAs(pagerItem {
+                    if (context.isEditing) listOf(t("pager_disabled_editing", player))
+                    else listOf()
+                })
         }
-
         modifyContentItem = {
-            this.run {
-                onClick {
-                    event.isCancelled = !context.isEditing
-                }
-            }
+            onClick { event.isCancelled = !context.isEditing }
+        }
+        modifyClickInArea = {
+            onClick { event.isCancelled = !context.isEditing }
         }
 
-        modifyClickInArea = {
-            this.run {
-                onClick {
-                    event.isCancelled = !context.isEditing
-                }
-            }
+        inventoryTitle = { player, context ->
+            t(
+                "group_interface",
+                player,
+                "row" to (context.position + 1).toString(),
+                "groupName" to context.groups.first().name
+            )
         }
+        //</editor-fold>
     }
 ) {
+    //<editor-fold desc="Context">
     class GroupContext(
         var groups: List<SelectGroupInterface.GroupDTO>,
         var useOldMaterial: Boolean = false,
@@ -58,6 +61,15 @@ object GroupInterface : ScrollInterface<GroupInterface.GroupContext, Material>(
         val materials = groups.first().newMaterials ?: groups.first().oldMaterials!!
     }
 
+    override val contextClass: KClass<GroupContext> get() = GroupContext::class
+
+    override fun defaultContext(player: Player): GroupContext {
+        // This is never called.
+        throw IllegalStateException("There is no default Context for Group Interface!")
+    }
+    //</editor-fold>
+
+    //<editor-fold desc="Content">
     override fun contentProvider(id: Int, context: GroupContext): Material? {
         val first = context.groups.first() /* The list is either singular, or grouped by materials. */
 
@@ -66,13 +78,6 @@ object GroupInterface : ScrollInterface<GroupInterface.GroupContext, Material>(
         } else first.newMaterials ?: first.oldMaterials!!
 
         return material.getOrNull(id)
-    }
-
-    override val contextClass: KClass<GroupContext> get() = GroupContext::class
-
-    override fun defaultContext(player: Player): GroupContext {
-        // This is never called.
-        throw IllegalStateException("There is no default Context for Group Interface!")
     }
 
     override fun contentDisplay(
@@ -84,12 +89,13 @@ object GroupInterface : ScrollInterface<GroupInterface.GroupContext, Material>(
         data: Material,
         context: GroupContext
     ): ClickInfo<GroupContext>.() -> Unit = { }
+    //</editor-fold>
 
     //<editor-fold desc="Items">
     val backToSelectionItem = item()
         .atSlots(bottomRow)
         .displayAs { createItem(Material.FEATHER, name = t("back_to_selection", player)) }
-        .onClick { SelectGroupInterface.openInventory(click.player) }
+        .routeTo(SelectGroupInterface)
 
     val worldsItem = item()
         .atSlots(bottomRow + 1)
@@ -101,7 +107,8 @@ object GroupInterface : ScrollInterface<GroupInterface.GroupContext, Material>(
 
     val isEditingItem = item()
         .atSlots(bottomRow + 3)
-        .usedWhen { context.isEditing && !context.useOldMaterial && player.hasPermission(canEdit) }
+        .usedWhen("editing") { context.isEditing && !context.useOldMaterial }
+        .usedWhen("permission") { player.hasPermission(canEdit) }
         .displayAs {
             val description = listOf(t(if (context.isEditing) "on" else "off", player))
             createItem(Material.WRITABLE_BOOK, name = t("is_editing", player), description = description)
@@ -110,15 +117,15 @@ object GroupInterface : ScrollInterface<GroupInterface.GroupContext, Material>(
 
     val cancelItem = item()
         .atSlots(bottomRow + 3)
-        .usedWhen { context.isEditing }
+        .usedWhen("editing") { context.isEditing }
         .displayAs { createItem(Material.RED_STAINED_GLASS_PANE, name = t("cancel", player)) }
         .modifyContext { context.isEditing = false }
 
     val saveItem = item()
         .atSlots(bottomRow + 5)
-        .usedWhen { context.isEditing }
+        .usedWhen("editing") { context.isEditing }
         .displayAs { createItem(Material.GREEN_STAINED_GLASS_PANE, name = t("save", player)) }
-        .onClick {
+        .modifyContext {
             val items = (0..bottomRow).map {
                 event.inventory.getItem(it)
             }
@@ -129,15 +136,14 @@ object GroupInterface : ScrollInterface<GroupInterface.GroupContext, Material>(
                 context.groups.map { it.worldName }
             )
 
-            openInventory(click.player, context.also {
-                it.isEditing = false
-                it.groups = it.groups.map { it.also { it.newMaterials = newMaterials } }
-            })
+            context.isEditing = false
+            context.groups = context.groups.map { it.also { it.newMaterials = newMaterials } }
         }
 
     val useOldMaterialItem = item()
         .atSlots(bottomRow + 5)
-        .usedWhen { !context.isEditing && context.groups.first().oldMaterials != context.groups.first().newMaterials }
+        .usedWhen("editing") { context.isEditing }
+        .usedWhen("materials") { context.groups.first().oldMaterials != context.groups.first().newMaterials }
         .displayAs {
             val description = listOf(t(if (context.useOldMaterial) "on" else "off", player))
 
@@ -195,17 +201,4 @@ object GroupInterface : ScrollInterface<GroupInterface.GroupContext, Material>(
         )
     }
     //</editor-fold>
-
-    override fun getInventory(player: Player, context: GroupContext): Inventory {
-        return Bukkit.createInventory(
-            null,
-            6 * 9,
-            t(
-                "group_interface",
-                player,
-                "row" to (context.position + 1).toString(),
-                "groupName" to context.groups.first().name
-            )
-        )
-    }
 }

@@ -24,21 +24,29 @@ object SelectWorldInterface : ScrollInterface<SelectWorldInterface.SelectWorldCo
     options {
         contentArea = (0 to 0) to (8 to 0)
         modifyScroller = { displayAs(pagerItem()) }
+
+        inventorySize = 2 * 9
+        inventoryTitle = { player, context -> t("select_world_interface", player, "row" to (context.position + 1).toString()) }
     }
 ) {
+    //<editor-fold desc="Context">
     override val contextClass: KClass<SelectWorldContext> get() = SelectWorldContext::class
 
     class SelectWorldContext(
         var selectedWorldNames: List<String>,
         var onlyOverlappingWorlds: Boolean
     ) : ScrollContext()
+    //</editor-fold>
 
+    //<editor-fold desc="Helper">
     fun worldBlockFromName(name: String): Material {
         if (name.contains("nether", ignoreCase = true)) return Material.NETHERRACK
         if (name.contains("end", ignoreCase = true)) return Material.END_STONE
         return Material.GRASS_BLOCK
     }
+    //</editor-fold>
 
+    //<editor-fold desc="Content">
     override fun contentProvider(id: Int, context: SelectWorldContext): World? {
         return Bukkit.getWorlds().getOrNull(id)
     }
@@ -79,17 +87,17 @@ object SelectWorldInterface : ScrollInterface<SelectWorldInterface.SelectWorldCo
         }
         openInventory(click.player, context)
     }
+    //</editor-fold>
 
+    //<editor-fold desc="Items">
     val backToSelectionItem = item()
         .atSlots(bottomRow + 9)
         .displayAs { createItem(Material.FEATHER, name = t("back_to_selection", player)) }
-        .onClick {
-            SelectGroupInterface.openInventory(
-                click.player,
-                SelectGroupInterface.getContext(click.player).also {
-                    it.onlyOverlappingWorlds = context.onlyOverlappingWorlds; it.worldNames = context.selectedWorldNames
-                }
-            )
+        .routeTo(SelectGroupInterface) {
+            val context = SelectGroupInterface.getContext(click.player)
+            context.onlyOverlappingWorlds = this.context.onlyOverlappingWorlds
+            context.worldNames = this.context.selectedWorldNames
+            context
         }
 
     val onlyOverlappingWorldsItem = item()
@@ -103,12 +111,5 @@ object SelectWorldInterface : ScrollInterface<SelectWorldInterface.SelectWorldCo
             onlyOverlappingWorldsItem
         )
     }
-
-    override fun getInventory(player: Player, context: SelectWorldContext): Inventory {
-        return Bukkit.createInventory(
-            null,
-            2 * 9,
-            t("select_world_interface", player, "row" to (context.position + 1).toString())
-        )
-    }
+    //</editor-fold>
 }

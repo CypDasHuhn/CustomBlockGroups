@@ -17,13 +17,6 @@ import org.bukkit.Material
 import org.bukkit.entity.Player
 import org.bukkit.inventory.Inventory
 import org.bukkit.inventory.ItemStack
-import org.jetbrains.exposed.sql.SortOrder
-import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
-import org.jetbrains.exposed.sql.SqlExpressionBuilder.inList
-import org.jetbrains.exposed.sql.and
-import org.jetbrains.exposed.sql.count
-import org.jetbrains.exposed.sql.selectAll
-import org.jetbrains.exposed.sql.transactions.transaction
 import kotlin.reflect.KClass
 
 object SelectGroupInterface :
@@ -31,13 +24,26 @@ object SelectGroupInterface :
         "SelectGroupInterface",
         options {
             modifyScroller = { displayAs(pagerItem()) }
+            inventoryTitle = { player, context -> t("select_group_interface", player, "row" to (context.position + 1).toString()) }
         }
     ) {
+    //<editor-fold desc="Classes">
+    //<editor-fold desc="Context">
+    override val contextClass: KClass<SelectGroupContext> get() = SelectGroupContext::class
     class SelectGroupContext(
         var worldNames: List<String>,
         var groupFilter: GroupFilter,
         var onlyOverlappingWorlds: Boolean
     ) : ScrollContext()
+
+    override fun defaultContext(player: Player): SelectGroupContext {
+        return SelectGroupContext(
+            worldNames = defaultWorlds(player).map { it.name },
+            GroupFilter.IF_DIFFERENT,
+            false
+        )
+    }
+    //</editor-fold>
 
     enum class GroupFilter {
         ALL,
@@ -50,7 +56,9 @@ object SelectGroupInterface :
         val oldMaterials: List<Material>?,
         var newMaterials: List<Material>?
     )
+    //</editor-fold>
 
+    //<editor-fold desc="Content">
     override fun contentDisplay(
         data: List<GroupDTO>,
         context: SelectGroupContext
@@ -62,7 +70,8 @@ object SelectGroupInterface :
 
         val materials = first.newMaterials ?: first.oldMaterials!!
         val material =
-            if (materials.first() != Material.AIR) materials.first() else materials.getOrNull(1) ?: Material.BARRIER
+            if (materials.first() != Material.AIR) materials.first()
+            else materials.getOrNull(1) ?: Material.BARRIER
 
         createItem(
             material = material,
@@ -79,84 +88,21 @@ object SelectGroupInterface :
     }
 
     override fun contentProvider(id: Int, context: SelectGroupContext): List<GroupDTO>? {
-        val result = transaction {
-            val validGroupNames = GroupManager.Groups
-                .select(GroupManager.Groups.name, GroupManager.Groups.worldName)
-                .where { GroupManager.Groups.worldName inList context.worldNames }
-                .groupBy(GroupManager.Groups.name)
-                .having {
-                    GroupManager.Groups.worldName.count() greaterEq context.worldNames.size.toLong()
-                }.map { it[GroupManager.Groups.name] }
-
-            val base = if (context.onlyOverlappingWorlds) {
-                GroupManager.Groups
-                    .selectAll()
-                    .where {
-                        (GroupManager.Groups.name inList validGroupNames) and
-                                (GroupManager.Groups.worldName inList context.worldNames)
-                    }
-            } else {
-                GroupManager.Groups.selectAll().where { GroupManager.Groups.worldName inList context.worldNames }
-            }
-
-            when (context.groupFilter) {
-                GroupFilter.ALL -> listOf(
-                    GroupManager.Group.wrapRow(
-                        base.orderBy(GroupManager.Groups.name to SortOrder.DESC).limit(1, id.toLong()).firstOrNull()
-                            ?: return@transaction null
-                    ).toDTO()
-                )
-
-                GroupFilter.IF_DIFFERENT -> {
-                    val groups = base
-                        .orderBy(GroupManager.Groups.name to SortOrder.DESC)
-                        .groupBy(GroupManager.Groups.newMaterials, GroupManager.Groups.oldMaterials)
-
-                    val entry = groups.limit(1, id.toLong()).firstOrNull() ?: return@transaction null
-
-                    var query = (GroupManager.Groups.worldName inList context.worldNames) and
-                            (GroupManager.Groups.newMaterials eq entry[GroupManager.Groups.newMaterials]) and
-                            (GroupManager.Groups.oldMaterials eq entry[GroupManager.Groups.oldMaterials])
-
-                    if (context.onlyOverlappingWorlds) query =
-                        query and (GroupManager.Groups.name inList validGroupNames)
-
-                    val sameGroupEntries = GroupManager.Groups.selectAll()
-                        .where {
-                            query
-                        }
-                        .orderBy(GroupManager.Groups.name to SortOrder.DESC)
-                        .map { GroupManager.Group.wrapRow(it).toDTO() }
-
-                    return@transaction sameGroupEntries
-                }
-            }
-        }
-
-        return result
-    }
-
-    override val contextClass: KClass<SelectGroupContext> get() = SelectGroupContext::class
-
-    override fun defaultContext(player: Player): SelectGroupContext {
-        return SelectGroupContext(
-            worldNames = defaultWorlds(player).map { it.name },
-            GroupFilter.IF_DIFFERENT,
-            false
+        return GroupManager.findGroupsForInterface(
+            context.worldNames,
+            context.groupFilter,
+            context.onlyOverlappingWorlds,
+            id
         )
     }
+    //</editor-fold>
 
+    //<editor-fold desc="Items">
     val selectWorldItem = item()
         .atSlots(bottomRow + 4)
         .displayAs { createItem(Material.GRASS_BLOCK, name = t("select_world", player)) }
-        .onClick {
-            SelectWorldInterface.openInventory(
-                click.player,
-                SelectWorldInterface.SelectWorldContext(
-                    context.worldNames,
-                    context.onlyOverlappingWorlds
-                )
-            )
+        .routeTo(SelectWorldInterface) {
+            SelectWorldInterface.SelectWorldContext(context.worldNames, context.onlyOverlappingWorlds)
         }
 
     val groupFilterItem = item()
@@ -171,13 +117,12 @@ object SelectGroupInterface :
             )
         }
         .modifyContext {
-            context.also {
-                it.groupFilter = when (it.groupFilter) {
-                    GroupFilter.ALL -> GroupFilter.IF_DIFFERENT
-                    GroupFilter.IF_DIFFERENT -> GroupFilter.ALL
-                }
+            context.groupFilter = when (context.groupFilter) {
+                GroupFilter.ALL -> GroupFilter.IF_DIFFERENT
+                GroupFilter.IF_DIFFERENT -> GroupFilter.ALL
             }
         }
+
 
     override fun getOtherItems(): List<InterfaceItem<SelectGroupContext>> {
         return listOf(
@@ -185,12 +130,5 @@ object SelectGroupInterface :
             groupFilterItem
         )
     }
-
-    override fun getInventory(player: Player, context: SelectGroupContext): Inventory {
-        return Bukkit.createInventory(
-            null,
-            6 * 9,
-            t("select_group_interface", player, "row" to (context.position + 1).toString())
-        )
-    }
+    //</editor-fold>
 }

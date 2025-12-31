@@ -93,6 +93,7 @@ object DatapackManager {
 
         val blockFile = blocksDirectory.resolve("$groupName.json")
         if (!blockFile.exists()) {
+            blockFile.parentFile.mkdirs()
             blockFile.createNewFile()
         }
         blockFile.writeText(materialList.toDatapackDats())

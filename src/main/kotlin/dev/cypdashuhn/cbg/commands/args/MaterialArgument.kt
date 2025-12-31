@@ -1,6 +1,6 @@
-package dev.cypdashuhn.cbg.commands
+package dev.cypdashuhn.cbg.commands.args
 
-import dev.cypdashuhn.rooster.localization.tSend
+import dev.cypdashuhn.rooster.common.util.tSend
 import dev.jorel.commandapi.arguments.Argument
 import dev.jorel.commandapi.arguments.ArgumentSuggestions
 import dev.jorel.commandapi.arguments.CustomArgument
@@ -27,7 +27,7 @@ fun materialListArgument(
                 val mat = Material.valueOf(material.uppercase())
 
                 if (material.lowercase() in materials) {
-                    info.sender.tSend("material_duplicate", "material" to material)
+                    info.sender.tSend("cbg.error.material_duplicate", "material" to material)
                     throw CustomArgument.CustomArgumentException.fromMessageBuilder(
                         CustomArgument.MessageBuilder("Duplicate material: ").appendArgInput()
                     )
@@ -36,7 +36,7 @@ fun materialListArgument(
                 materials.add(material.lowercase())
                 materialList.add(mat)
             } catch (e: IllegalArgumentException) {
-                info.sender.tSend(materialInvalidKey, "material" to material)
+                info.sender.tSend("cbg.error.material_invalid", "material" to material)
                 throw CustomArgument.CustomArgumentException.fromMessageBuilder(
                     CustomArgument.MessageBuilder("Invalid material: $material in ").appendArgInput()
                 )

@@ -7,7 +7,9 @@ import org.jetbrains.exposed.dao.IntEntity
 import org.jetbrains.exposed.dao.IntEntityClass
 import org.jetbrains.exposed.dao.id.EntityID
 import org.jetbrains.exposed.dao.id.IntIdTable
-import org.jetbrains.exposed.sql.and
+import org.jetbrains.exposed.sql.*
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.inList
 import org.jetbrains.exposed.sql.transactions.transaction
 
 object GroupManager {
@@ -166,5 +168,66 @@ object GroupManager {
         }
 
         return returnMaterials
+    }
+
+    fun findGroupsForInterface(
+        worldNames: List<String>,
+        groupFilter: SelectGroupInterface.GroupFilter,
+        onlyOverlappingWorlds: Boolean,
+        offset: Int
+    ): List<SelectGroupInterface.GroupDTO>? {
+        return transaction {
+            val validGroupNames = Groups
+                .select(Groups.name, Groups.worldName)
+                .where { Groups.worldName inList worldNames }
+                .groupBy(Groups.name)
+                .having {
+                    Groups.worldName.count() greaterEq worldNames.size.toLong()
+                }.map { it[Groups.name] }
+
+            val base = if (onlyOverlappingWorlds) {
+                Groups
+                    .selectAll()
+                    .where {
+                        (Groups.name inList validGroupNames) and
+                                (Groups.worldName inList worldNames)
+                    }
+            } else {
+                Groups.selectAll().where { Groups.worldName inList worldNames }
+            }
+
+            when (groupFilter) {
+                SelectGroupInterface.GroupFilter.ALL -> listOf(
+                    Group.wrapRow(
+                        base.orderBy(Groups.name to SortOrder.DESC).limit(1, offset.toLong()).firstOrNull()
+                            ?: return@transaction null
+                    ).toDTO()
+                )
+
+                SelectGroupInterface.GroupFilter.IF_DIFFERENT -> {
+                    val groups = base
+                        .orderBy(Groups.name to SortOrder.DESC)
+                        .groupBy(Groups.newMaterials, Groups.oldMaterials)
+
+                    val entry = groups.limit(1, offset.toLong()).firstOrNull() ?: return@transaction null
+
+                    var query = (Groups.worldName inList worldNames) and
+                            (Groups.newMaterials eq entry[Groups.newMaterials]) and
+                            (Groups.oldMaterials eq entry[Groups.oldMaterials])
+
+                    if (onlyOverlappingWorlds) query =
+                        query and (Groups.name inList validGroupNames)
+
+                    val sameGroupEntries = Groups.selectAll()
+                        .where {
+                            query
+                        }
+                        .orderBy(Groups.name to SortOrder.DESC)
+                        .map { Group.wrapRow(it).toDTO() }
+
+                    return@transaction sameGroupEntries
+                }
+            }
+        }
     }
 }
