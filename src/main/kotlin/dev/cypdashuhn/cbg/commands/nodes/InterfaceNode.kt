@@ -13,7 +13,7 @@ internal fun buildInterfaceCommand(): Argument<String> {
     return LiteralArgument("interface")
         .withPermission(canSee)
         .executesPlayer(PlayerCommandExecutor { sender, args ->
-            val worlds: List<World>? by args.argsMap
+            val worlds = args.argsMap["worlds"] as? List<World>?
             val worldNames = getWorldNames(worlds, sender)
 
             SelectGroupInterface.openInventory(

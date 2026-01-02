@@ -3,8 +3,8 @@ package dev.cypdashuhn.cbg.commands.nodes
 import dev.cypdashuhn.cbg.canEdit
 import dev.cypdashuhn.cbg.commands.args.groupNameArgument
 import dev.cypdashuhn.cbg.commands.args.materialListArgument
-import dev.cypdashuhn.cbg.commands.args.worldsArgument
 import dev.cypdashuhn.cbg.commands.getWorldNames
+import dev.cypdashuhn.cbg.commands.hasGroupsInScope
 import dev.cypdashuhn.cbg.database.GroupManager
 import dev.cypdashuhn.rooster.common.util.tSend
 import dev.jorel.commandapi.arguments.Argument
@@ -16,6 +16,7 @@ import org.bukkit.World
 internal fun buildEditCommand(): Argument<String> {
     return LiteralArgument("edit")
         .withPermission(canEdit)
+        .withRequirement(::hasGroupsInScope)
         .then(
             groupNameArgument()
                 .then(
@@ -23,7 +24,7 @@ internal fun buildEditCommand(): Argument<String> {
                         .executesPlayer(PlayerCommandExecutor { sender, args ->
                             val groupName: String by args.argsMap
                             val materials: List<Material> by args.argsMap
-                            val worlds: List<World>? by args.argsMap
+                            val worlds = args.argsMap["worlds"] as? List<World>?
                             val worldNames = getWorldNames(worlds, sender)
 
                             GroupManager.modifyGroup(groupName, worldNames, materials)

@@ -20,13 +20,13 @@ internal fun buildCreateCommand(): Argument<String> {
                 .then(
                     materialListArgument()
                         .executesPlayer(PlayerCommandExecutor { sender, args ->
-                            val group: String by args.argsMap
+                            val groupName: String by args.argsMap
                             val materials: List<Material> by args.argsMap
-                            val worlds = args.argsMap.get("worlds") as? List<World>?
+                            val worlds = args.argsMap["worlds"] as? List<World>?
                             val worldNames = getWorldNames(worlds, sender)
 
-                            GroupManager.addGroup(group, worldNames, materials)
-                            sender.tSend("cbg.create.success", "groupname" to group)
+                            GroupManager.addGroup(groupName, worldNames, materials)
+                            sender.tSend("cbg.create.success", "groupname" to groupName)
                         })
                 )
         )

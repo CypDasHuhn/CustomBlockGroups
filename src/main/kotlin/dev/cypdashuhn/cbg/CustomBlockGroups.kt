@@ -2,6 +2,7 @@ package dev.cypdashuhn.cbg
 
 import com.google.common.cache.CacheBuilder
 import dev.cypdashuhn.cbg.commands.registerCbgCommand
+import dev.cypdashuhn.cbg.database.DatapackManager
 import dev.cypdashuhn.cbg.database.GroupManager
 import dev.cypdashuhn.cbg.ui.GroupInterface
 import dev.cypdashuhn.cbg.ui.SelectGroupInterface
@@ -40,6 +41,7 @@ class CustomBlockGroups : JavaPlugin() {
         plugin = this
 
         initLocalizationStore()
+        DatapackManager.initializeDatapacks()
 
         initRooster(plugin, services, cache) {
             services.setDelegate<LocaleProvider>(localeProvider)
@@ -49,6 +51,8 @@ class CustomBlockGroups : JavaPlugin() {
 
             db(listOf(GroupManager.Groups))
         }
+
+        GroupManager.onEnable()
 
         CommandAPI.onEnable()
         registerCbgCommand()

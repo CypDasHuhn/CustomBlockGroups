@@ -4,6 +4,7 @@ import dev.cypdashuhn.cbg.canSee
 import dev.cypdashuhn.cbg.commands.args.groupNameArgument
 import dev.cypdashuhn.cbg.commands.args.worldsArgument
 import dev.cypdashuhn.cbg.commands.getWorldNames
+import dev.cypdashuhn.cbg.commands.hasGroupsInScope
 import dev.cypdashuhn.cbg.database.GroupManager
 import dev.cypdashuhn.rooster.common.util.tSend
 import dev.jorel.commandapi.arguments.Argument
@@ -19,10 +20,11 @@ import kotlin.collections.joinToString
 internal fun buildInfoCommand(): Argument<String> {
     return LiteralArgument("info")
         .withPermission(canSee)
+        .withRequirement(::hasGroupsInScope)
         .then(
             groupNameArgument()
                 .executesPlayer(PlayerCommandExecutor { sender, args ->
-                    val worlds: List<World>? by args.argsMap
+                    val worlds = args.argsMap["worlds"] as? List<World>?
                     showGroupInfo(sender, args, worlds)
                 })
         )

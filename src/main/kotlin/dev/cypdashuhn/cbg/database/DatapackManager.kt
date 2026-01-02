@@ -26,11 +26,6 @@ object DatapackManager {
         }
     }
 
-    fun modifyDatapack(worldName: String, action: (File) -> Unit) {
-        val datapackPath = getDatapackPath(worldName)
-        action(datapackPath)
-    }
-
     val blockFolder: String
         get() {
             val version = Bukkit.getServer().version
@@ -59,7 +54,7 @@ object DatapackManager {
     fun initializeDatapacks() {
         modifyDatapackGlobal { it ->
             val tagsDirectory = it.resolve("data/$datapackName/tags")
-            val blocksDirectory = tagsDirectory.resolve("block")
+            val blocksDirectory = tagsDirectory.resolve(blockFolder)
 
             blocksDirectory.mkdirs()
 
@@ -89,7 +84,7 @@ object DatapackManager {
     fun createOrOverrideDatapackEntry(groupName: String, worldName: String, materialList: List<Material>) {
         val datapackPath = getDatapackPath(worldName)
         val tagsDirectory = datapackPath.resolve("data/$datapackName/tags")
-        val blocksDirectory = tagsDirectory.resolve("block")
+        val blocksDirectory = tagsDirectory.resolve(blockFolder)
 
         val blockFile = blocksDirectory.resolve("$groupName.json")
         if (!blockFile.exists()) {
@@ -102,7 +97,7 @@ object DatapackManager {
     fun deleteDatapackEntry(groupName: String, worldName: String) {
         val datapackPath = getDatapackPath(worldName)
         val tagsDirectory = datapackPath.resolve("data/$datapackName/tags")
-        val blocksDirectory = tagsDirectory.resolve("block")
+        val blocksDirectory = tagsDirectory.resolve(blockFolder)
         val itemsDirectory = tagsDirectory.resolve("item")
 
         val blockFile = blocksDirectory.resolve("$groupName.json")

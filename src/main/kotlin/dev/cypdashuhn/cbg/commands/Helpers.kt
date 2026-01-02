@@ -1,5 +1,6 @@
 package dev.cypdashuhn.cbg.commands
 
+import dev.cypdashuhn.cbg.database.GroupManager
 import dev.cypdashuhn.cbg.globalAsDefault
 import dev.cypdashuhn.rooster.common.util.tSend
 import dev.jorel.commandapi.arguments.CustomArgument
@@ -15,6 +16,11 @@ fun defaultWorlds(sender: CommandSender): List<World> {
 
 fun getWorldNames(worlds: List<World>?, sender: CommandSender): List<String> {
     return (worlds ?: defaultWorlds(sender)).map { it.name }
+}
+
+fun hasGroupsInScope(sender: CommandSender): Boolean {
+    val worldNames = defaultWorlds(sender).map { it.name }
+    return GroupManager.getGroups(worldNames).isNotEmpty()
 }
 
 fun validateFileName(name: String, sender: CommandSender): String {

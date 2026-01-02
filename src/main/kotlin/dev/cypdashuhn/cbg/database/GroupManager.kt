@@ -25,7 +25,10 @@ object GroupManager {
 
         var name by Groups.name
         var worldName by Groups.worldName
-        var newMaterials by Groups.newMaterials.transform(
+        var newMaterials by Groups.newMaterials.transformList()
+        var oldMaterials by Groups.oldMaterials.transformList()
+
+        fun Column<String?>.transformList() = this.transform(
             { it?.joinToString(",") }, // Serialize
             {
                 it?.split(",")?.mapNotNull { materialString ->
@@ -33,14 +36,7 @@ object GroupManager {
                 }
             }
         )
-        var oldMaterials by Groups.oldMaterials.transform(
-            { it?.joinToString(",") }, // Serialize
-            {
-                it?.split(",")?.mapNotNull { materialString ->
-                    runCatching { Material.valueOf(materialString) }.getOrNull() // Deserialize with error handling
-                }
-            }
-        )
+
 
         fun toDTO() = SelectGroupInterface.GroupDTO(name, worldName, oldMaterials, newMaterials)
     }
@@ -111,6 +107,10 @@ object GroupManager {
         }
     }
 
+    fun onEnable() {
+        reloadMaterials()
+    }
+
     fun updateFromInventory(
         row: Int,
         items: List<ItemStack?>,
@@ -125,18 +125,17 @@ object GroupManager {
                 val materials = (group.newMaterials ?: group.oldMaterials!!)
                 val materialsWithId = materials.withIndex()
 
-                val newMaterials =
-                    materialsWithId.filter { it.index !in itemsWithId.map { it.second } }.map { it.value }
-                        .toMutableList()
+                val newMaterials = materialsWithId
+                    .filter { it.index !in itemsWithId.map { it.second } }
+                    .map { it.value }
+                    .toMutableList()
+
                 itemsWithId.forEach {
                     if (it.first != null && it.first!!.type.isBlock) {
                         newMaterials.add(it.first!!.type)
                     }
                 }
-                if (materials.contains(Material.AIR)) {
-                    newMaterials.add(Material.AIR)
-                }
-                if (newMaterials.isEmpty()) {
+                if (materials.contains(Material.AIR) || materials.isEmpty()) {
                     newMaterials.add(Material.AIR)
                 }
 

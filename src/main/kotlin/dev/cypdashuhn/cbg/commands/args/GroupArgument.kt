@@ -11,7 +11,7 @@ import dev.jorel.commandapi.arguments.TextArgument
 import org.bukkit.World
 
 fun groupNameArgument(
-    key: String = "group",
+    key: String = "groupName",
     mustExist: Boolean = true,
     worldsKey: String = "worlds"
 ): Argument<String> {
@@ -22,7 +22,7 @@ fun groupNameArgument(
 
         if (mustExist) {
             // Group must exist
-            if (GroupManager.getGroupsAllMatching(worldNames).none { it.name == groupName }) {
+            if (GroupManager.getGroups(worldNames).none { it.name == groupName }) {
                 info.sender.tSend("cbg.error.group_not_found", "groupname" to groupName)
                 throw CustomArgument.CustomArgumentException.fromMessageBuilder(
                     CustomArgument.MessageBuilder("Group not found: ").appendArgInput()
@@ -46,7 +46,7 @@ fun groupNameArgument(
             if (mustExist) {
                 val worlds = info.previousArgs[worldsKey] as? List<World> ?: defaultWorlds(info.sender)
                 val worldNames = worlds.map { it.name }
-                GroupManager.getGroupsAllMatching(worldNames).map { it.name }.toTypedArray()
+                GroupManager.getGroups(worldNames).map { it.name }.distinct().toTypedArray()
             } else {
                 arrayOf("[Group Name]")
             }
